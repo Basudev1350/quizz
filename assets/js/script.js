@@ -1,95 +1,271 @@
-const numberSteps = $('.quiz__step').length - 1;
-let disableButtons = false;
-const tick = '<div class="answer__tick"><svg width="14" height="14" viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></div>'; 
-let thanks = '<div class="thanks"><div class="thanks__tick">✔ </div><h1 class="thanks__title">Thank you!</h1></div>';
-
-$('.answer__input').on('change', function(e) { 
- 
-    if($(this).next().children('.answer__tick').length>0){
-      return false
-    }
-  $(this).next().append(tick)
-});
-
-
-$('.navigation__btn--right').click(function(e){
-let currentIndex = Number($('.quiz__step--current').attr('data-question'));
-  if($('.quiz__step--current input:checked').length == 0){
-     //console.log('input empty');
-     return false;
- }
-  //console.log({'currentIndex': currentIndex, 'numberSteps': numberSteps-1})
-  if(currentIndex == numberSteps + 1 || disableButtons==true){
-    //console.log('last')
-    return false;
-  }
-  if(currentIndex + 1 == numberSteps + 1 ){
-    $(this).addClass('navigation__btn--disabled');
-  }
-  if(currentIndex == numberSteps){
-  $('.summary__item').remove();
-    $('.quiz__step:not(.quiz__summary)').each(function(index, item){
-      console.log(item)
-      let icon = $(item).children('.question__emoji').text()
-      let answer = $(item).children('.answer').find('input:checked').val();
-      let node = '<div class="summary__item"><div class="question__emoji">'+icon+'</div>'+answer+'</div>'
-      $('#summary').append(node)
-    })
-  }
-  const percentage = (currentIndex * 100)/ numberSteps;
-  $('.progress__inner').width(percentage+ '%');
-  console.log('input ok')
-  $('.quiz__step--current').hide('300');
-  $('.quiz__step--current').removeClass('quiz__step--current');
-  $('.quiz__step--'+(currentIndex+1)).show('300').addClass('quiz__step--current');
-  currentIndex = Number($('.quiz__step--current').attr('data-question'));
-   if(currentIndex > 1 ){
-    $('.navigation__btn--left').removeClass('navigation__btn--disabled');
-  }
-});
-/*
-function keypressEvent(e){
-    let key = e.which || e.keyCode;
-
-  if(key==65 || key==66){
-    $('.quiz__step--current input[data-char="'+key+'"]').prop('checked', true).change();
-    console.log($('.quiz__step--current input[data-char="'+key+'"]'))
-   // $('.quiz__step--current input[data-char="'+key+'"] + .answer__label').change();
-  }
-}
-*/
-
-
-
-$('.navigation__btn--left').click(function(e){
-let currentIndex = Number($('.quiz__step--current').attr('data-question'));
- 
-  console.log({'currentIndex': currentIndex, 'numberSteps': numberSteps-1})
-  if(currentIndex == 1 || disableButtons==true){
-    console.log('first')
-    $(this).addClass('navigation__btn--disabled');
-    return false;
-  }
- 
-
-  $('.navigation__btn--right').removeClass('navigation__btn--disabled')
-
-  console.log('input ok')
-  $('.quiz__step--current').hide('300');
-  $('.quiz__step--current').removeClass('quiz__step--current');
-  $('.quiz__step--'+(currentIndex-1)).show('300').addClass('quiz__step--current');
-  currentIndex = Number($('.quiz__step--current').attr('data-question'));
-  if(currentIndex == 1 ){
-    $(this).addClass('navigation__btn--disabled');
-  }
-    const percentage = ((currentIndex-1)  * 100)/ numberSteps+1;
-  $('.progress__inner').width(percentage+ '%');
-$('.quiz__step--current').keyup(keypressEvent);
-});
-$('.submit').click(function(e){
-  e.preventDefault();
-  $('.quiz').remove();
-  $(thanks).appendTo('.container');
-  disableButtons=true;
-  $('.navigation__btn').addClass('navigation__btn--disabled')
-})
+(function() {
+	"use strict";
+  
+	let questions = [
+	  {
+		question: "What is Earth's largest continent?",
+		answers: ["Asia", "Africa", "Antarctica", "Europe"],
+		correctAnswer: 1
+	  },
+	  {
+		question: "Which of these countries is NOT part of the European Union?",
+		answers: ["Spain", "Germany", "Russia", "Italy"],
+		correctAnswer: 3
+	  },
+	  {
+		question: "What is the capital of Romania?",
+		answers: ["Kiev", "Bucharest", "Budapest", "Chisinau"],
+		correctAnswer: 2
+	  }
+	];
+  
+	let questionIndex,
+	  currentQuestion,
+	  score,
+	  timeSpent,
+	  quizTimer,
+	  questionIsAnswered,
+	  isQuizDone;
+	let quiz = document.getElementById("quiz");
+  
+	function initQuiz() {
+	  quiz.classList.remove("quiz-intro");
+	  quiz.classList.add("quiz-started");
+  
+	  questionIndex = 0;
+	  currentQuestion = 1;
+	  questionIsAnswered = 0;
+	  score = 0;
+	  timeSpent = "00:00";
+  
+	  quiz.innerHTML = `<div id="progress-container"><span id="progress"></span></div>
+	  <div id="stats">
+	  <p>Question: <span id="questionNumber">${currentQuestion}/${
+		questions.length
+	  }</span></p>
+	  <p>Score: <span id="score">${score}</span></p>
+	  <p>Time: <span id="timer">00:00</span></p>
+	  </div>
+	  <section id="answers"></section>`;
+  
+	  displayQuestion();
+	  startTimer();
+	}
+  
+	function displayQuestion() {
+	  let question = questions[questionIndex];
+	  let answers = document.getElementById("answers");
+	  let answerNumber = 0;
+	  let output = `<h2 class="text-center bold">${currentQuestion}. ${
+		question.question
+	  }</h2>`;
+  
+	  for (let i in question.answers) {
+		answerNumber++;
+		output += `<div class="answer">
+		<input type="radio" id="answer-${answerNumber}" name="answers" value="${answerNumber}">
+		<label for="answer-${answerNumber}">
+		<span class="answer-number">${answerNumber}.</span> ${question.answers[i]}
+		</label>
+		</div>`;
+	  }
+  
+	  answers.innerHTML = output;
+	}
+  
+	function startTimer() {
+	  let s = 0;
+	  let m = 0;
+	  let h = 0;
+	  let seconds = 0;
+	  let minutes = 0;
+	  let hours = 0;
+	  let timer = document.getElementById("timer");
+  
+	  quizTimer = setInterval(function() {
+		s++;
+  
+		if (s > 59) {
+		  s = 0;
+		  m++;
+		  seconds = "0" + s;
+		}
+  
+		if (m > 59) {
+		  m = 0;
+		  h++;
+		  minutes = "00";
+		}
+  
+		seconds = s > 9 ? s : "0" + s;
+		minutes = m > 9 ? m : "0" + m;
+		hours = h > 9 ? h : "0" + h;
+  
+		timeSpent = h
+		  ? hours + ":" + minutes + ":" + seconds
+		  : minutes + ":" + seconds;
+		timer.textContent = timeSpent;
+	  }, 1000);
+	}
+  
+	function displayResults() {
+	  let notification = document.getElementById("notification");
+	  notification.parentElement.removeChild(notification);
+	  quizTimer = null;
+	  isQuizDone = 1;
+  
+	  let pageURL = window.location.href;
+	  let shareText = `I just finished this quiz and got ${score} out of ${
+		questions.length
+	  } questions right.`;
+	  let fbShareURL = `https://www.facebook.com/sharer.php?u=${pageURL}&quote=${shareText}`;
+	  let twitterShareURL = `https://twitter.com/intent/tweet?text=${shareText} ${pageURL}`;
+  
+	  quiz.innerHTML = `<section id="results" class="text-center">
+	  <h2 class="bold">Here are your results:</h2>
+	  <p id="percentage">${scorePercentage()}%</p>
+	  <p>You got <span class="bold">${score}</span> out of <span class="bold">${
+		questions.length
+	  }</span> questions.</p>
+	  <p style="margin-top: 10px;">Time spent: <span class="bold">${timeSpent}</span></p>
+  
+	  <h3 class="bold">Share your results</h3>
+	  <a class="share-link fb-bg" href="${fbShareURL}" target="_blank">Facebook</a>
+	  <a class="share-link twitter-bg" href="${twitterShareURL}" target="_blank">Tweet</a>
+  
+	  <button type="button" id="start-over-btn" class="btn blue-btn">Start over</button>
+	  </section>`;
+	}
+  
+	function goToNextQuestion() {
+	  currentQuestion++;
+	  questionIndex++;
+	  questionIsAnswered = 0;
+  
+	  let notification = document.getElementById("notification");
+	  notification.parentElement.removeChild(notification);
+  
+	  let questionNumber = document.getElementById("questionNumber");
+	  questionNumber.textContent = `${currentQuestion}/${questions.length}`;
+  
+	  displayQuestion();
+	}
+  
+	function submitAnswer(e) {
+	  let selectedAnswer = Number(e.target.value);
+	  let rightAnswer = questions[questionIndex].correctAnswer;
+	  let answers = document.getElementsByName("answers");
+	  let progress = document.getElementById("progress");
+  
+	  questionIsAnswered = 1;
+  
+	  progress.style.width = progressPercentage() + "%";
+  
+	  let notification = document.createElement("div");
+	  let message = document.createElement("p");
+	  let label = e.target.nextElementSibling;
+	  notification.id = "notification";
+  
+	  if (selectedAnswer === rightAnswer) {
+		score++;
+		message.textContent = "Right answer!";
+		label.classList.add("green-bg");
+	  } else {
+		message.textContent = "Wrong answer!";
+		label.classList.add("red-bg");
+  
+		answers.forEach(answer => {
+		  if (Number(answer.value) !== rightAnswer) return;
+  
+		  answer.nextElementSibling.classList.add("green-bg");
+		});
+	  }
+  
+	  let button = document.createElement("button");
+	  button.classList.add("blue-btn");
+  
+	  if (isLastQuestion()) {
+		button.id = "show-results-btn";
+		button.textContent = "Show results";
+		clearInterval(quizTimer);
+		quizTimer = null;
+	  } else {
+		button.id = "next-btn";
+		button.textContent = "Continue";
+	  }
+  
+	  notification.appendChild(message);
+	  notification.appendChild(button);
+	  quiz.insertAdjacentElement("afterend", notification);
+  
+	  button.focus();
+  
+	  answers.forEach(answer => (answer.disabled = "disabled"));
+  
+	  document.getElementById("score").textContent = score;
+	}
+  
+	let scorePercentage = () => (score / questions.length * 100).toFixed(0);
+	let progressPercentage = () =>
+	  (currentQuestion / questions.length * 100).toFixed(0);
+	let isLastQuestion = () => currentQuestion === questions.length;
+  
+	function spaceBarHandler() {
+	  if (document.querySelector(".quiz-intro")) {
+		initQuiz();
+	  }
+  
+	  if (questionIsAnswered && quizTimer) {
+		goToNextQuestion();
+	  }
+  
+	  if (!quizTimer && !isQuizDone) {
+		displayResults();
+		console.log("last");
+	  }
+	}
+  
+	function numericKeyHandler(e) {
+	  let answers = document.getElementsByName("answers");
+  
+	  answers.forEach(answer => {
+		if (answer.value === e.key) {
+		  if (questionIsAnswered) return;
+  
+		  answer.checked = "checked";
+  
+		  let event = new Event("change");
+		  answer.dispatchEvent(event);
+		  submitAnswer(event);
+  
+		  questionIsAnswered = 1;
+		}
+	  });
+	}
+  
+	document.addEventListener("click", function(e) {
+	  if (
+		e.target.matches("#start-quiz-btn") ||
+		e.target.matches("#start-over-btn")
+	  )
+		initQuiz();
+	  if (e.target.matches("#next-btn")) goToNextQuestion();
+	  if (e.target.matches("#show-results-btn")) displayResults();
+	});
+  
+	document.addEventListener("change", function(e) {
+	  if (e.target.matches('input[type="radio"]')) submitAnswer(e);
+	});
+  
+	document.addEventListener("keyup", function(e) {
+	  if (e.keyCode === 32) spaceBarHandler(); // init quiz / go to next question
+	  if (e.keyCode >= 48 && e.keyCode <= 57) numericKeyHandler(e); // choose an answer
+	});
+  
+	document
+	  .getElementById("shortcuts-info-btn")
+	  .addEventListener("click", function() {
+		let info = document.querySelector(".shortcuts-info");
+		info.classList.toggle("display-block");
+	  });
+  })();
